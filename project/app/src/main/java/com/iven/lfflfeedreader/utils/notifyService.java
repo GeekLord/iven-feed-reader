@@ -13,6 +13,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.preference.PreferenceManager;
+import android.text.TextUtils;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
 
@@ -80,16 +81,31 @@ public class notifyService extends Service {
         }
         saveUtils.saveLastDate(getBaseContext(), firstItemDate);
 
-        try {
-            lastDate = Integer.valueOf(firstItemDate);
-        } catch (NumberFormatException ignored) {
-            lastDate = 0;
-        }
+        lastDate = parseNotificationTime(firstItemDate);
 
         //get selected notification
         notificationSound = Uri.parse(alarm);
 
         return START_STICKY;
+    }
+
+    private int parseNotificationTime(String value) {
+        String time = extractNotificationTime(value);
+        if (time == null) {
+            return 0;
+        }
+        try {
+            return Integer.valueOf(time);
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
+    }
+
+    private String extractNotificationTime(String value) {
+        if (TextUtils.isEmpty(value) || !value.matches(".*\\d{2}:\\d{2}$")) {
+            return null;
+        }
+        return value.substring(value.length() - 5).replace(":", "");
     }
 
     @Override
@@ -125,11 +141,18 @@ public class notifyService extends Service {
                         tmpDOMParser = new DOMParser();
                         fFeed = tmpDOMParser.parseXml(saveUtils.getFeedUrl(getBaseContext()));
 
-                        //get the date of the last article posted
+                        if (fFeed == null || fFeed.getItemCount() == 0) {
+                            handler.postDelayed(runnableCode, Preferences.resolveTime(getBaseContext()) * 1000);
+                            return;
+                        }
+
                         updatedFeedItem = fFeed.getItem(0);
                         updatedDate = updatedFeedItem.getDate();
-
-                        updatedDateFormat = updatedDate.substring(updatedDate.length() - 5).replace(":", "");
+                        updatedDateFormat = extractNotificationTime(updatedDate);
+                        if (updatedDateFormat == null) {
+                            handler.postDelayed(runnableCode, Preferences.resolveTime(getBaseContext()) * 1000);
+                            return;
+                        }
                         updatedLastDate = Integer.valueOf(updatedDateFormat);
 
                         if (updatedLastDate != lastDate) {
@@ -149,7 +172,8 @@ public class notifyService extends Service {
                             notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
                             notificationManager.notify(0, notification);
 
-                            saveUtils.saveLastDate(getBaseContext(), updatedDate);
+                            lastDate = updatedLastDate;
+                            saveUtils.saveLastDate(getBaseContext(), updatedDateFormat);
                         }
 
                         // Repeat this the same runnable code block again another tot seconds (defined by the user)

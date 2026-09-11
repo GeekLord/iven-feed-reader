@@ -98,7 +98,9 @@ public class DOMParser {
                 }
                 setItemValue(item, node.getNodeName(), value.trim());
             }
-            feed.addItem(item);
+            if (item.getDate().matches(".*\\d{2}:\\d{2}$")) {
+                feed.addItem(item);
+            }
         }
     }
 
@@ -114,7 +116,10 @@ public class DOMParser {
             item.setDescription(value);
             item.setImage(extractImageUrl(value));
         } else if ("pubDate".equals(nodeName)) {
-            item.setDate(formatDate(value));
+            String formattedDate = formatDate(value);
+            if (formattedDate != null) {
+                item.setDate(formattedDate);
+            }
         }
     }
 
@@ -127,9 +132,10 @@ public class DOMParser {
         try {
             String formattedDate = value.replace(" +0000", "");
             SimpleDateFormat input = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss", Locale.US);
+            input.setLenient(false);
             Date date = input.parse(formattedDate);
             if (date == null) {
-                return value;
+                return null;
             }
 
             Locale locale = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
@@ -139,7 +145,7 @@ public class DOMParser {
             output.setTimeZone(TimeZone.getDefault());
             return output.format(date);
         } catch (Exception ignored) {
-            return value;
+            return null;
         }
     }
 }

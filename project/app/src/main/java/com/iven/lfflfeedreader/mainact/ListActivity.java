@@ -49,6 +49,7 @@ public class ListActivity extends AppCompatActivity implements android.support.v
     String feedCustom;
     String feedCustom2;
     String feedURL;
+    private int feedRequestId;
 
     //for notifications
     RSSItem firstItemDate;
@@ -479,110 +480,90 @@ public class ListActivity extends AppCompatActivity implements android.support.v
         }, 200);
     }
 
-    //this is the method to open a new feed rss on new Thread
+    // Loads a feed in the background. Only the newest request may update the UI.
     private void openNewFeed(final String datfeed) {
-
-        //close the navigation drawer
         closeDrawer();
-
-        //show swipe refresh
+        final int requestId = ++feedRequestId;
         swipeRefresh.setRefreshing(true);
 
-        //detect if there's a connection issue or not: if there's a connection problem stop refreshing and show message
         if (connectivityManager.getActiveNetworkInfo() == null) {
             toast = Toast.makeText(getBaseContext(), R.string.no_internet, Toast.LENGTH_SHORT);
             toast.show();
             swipeRefresh.setRefreshing(false);
-
-        } else {
-
-            Thread thread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    DOMParser tmpDOMParser = new DOMParser();
-                    fFeed = tmpDOMParser.parseXml(datfeed);
-
-                    ListActivity.this.runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            if (fFeed != null && fFeed.getItemCount() > 0) {
-
-                                feedsAdapter = new FeedsAdapter(ListActivity.this, fFeed);
-                                recyclerView.setAdapter(feedsAdapter);
-
-                                //close swipe refresh
-                                swipeRefresh.setRefreshing(false);
-
-                                //set feedURL calling setFeedString method, it is important if we want working swipe refresh listener
-                                //setFeedString(datfeed);
-                                feedURL = HomeUtils.setFeedString(ListActivity.this, datfeed);
-
-                                //update last article info only if the notification service is enabled
-                                //this is needed to avoid users to accidentally enable notify service
-                                //when opening a new feed url
-                                if (isNotificationServiceRunning(notifyService.class)) {
-                                    //get the date of the last article posted
-                                    firstItemDate = fFeed.getItem(0);
-                                    lastDate = firstItemDate.getDate();
-
-                                    //get last five characters and remove the `:`
-                                    lastDateFormat = lastDate.substring(lastDate.length() - 5).replace(":", "");
-
-                                    //send date info to notify service
-                                    saveUtils.saveLastDate(getBaseContext(), lastDateFormat);
-
-                                    stopService(notificationIntent);
-
-                                    //the service will be restarted if killed
-                                    broadcastIntent = new Intent("dontKillMe");
-                                    sendBroadcast(broadcastIntent);
-                                }
-                            }
-                        }
-                    });
-                }
-            });
-            thread.start();
-
+            return;
         }
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final RSSFeed parsedFeed = new DOMParser().parseXml(datfeed);
+                ListActivity.this.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (requestId != feedRequestId || isFinishing()) {
+                            return;
+                        }
+                        if (parsedFeed != null && parsedFeed.getItemCount() > 0) {
+                            fFeed = parsedFeed;
+                            feedsAdapter = new FeedsAdapter(ListActivity.this, parsedFeed);
+                            recyclerView.setAdapter(feedsAdapter);
+                            feedURL = HomeUtils.setFeedString(ListActivity.this, datfeed);
+                            updateNotificationBaseline(parsedFeed);
+                        } else {
+                            Toast.makeText(ListActivity.this, R.string.feed_load_failed, Toast.LENGTH_SHORT).show();
+                        }
+                        swipeRefresh.setRefreshing(false);
+                    }
+                });
+            }
+        }).start();
     }
 
-    //this is the method to refresh the feed items and the list view
-    //the xml is parsed again and if the number of the items is >0
-    //new items will be added on top of the list activity's ListView
+    @Override
     public void onRefresh() {
-
-        //detect if there's a connection issue or not: if there's a connection problem stop refreshing and show message
+        final int requestId = ++feedRequestId;
+        final String requestedFeedUrl = feedURL;
         if (connectivityManager.getActiveNetworkInfo() == null) {
-            Toast toast = Toast.makeText(getBaseContext(), R.string.no_internet, Toast.LENGTH_SHORT);
-            toast.show();
+            Toast.makeText(getBaseContext(), R.string.no_internet, Toast.LENGTH_SHORT).show();
             swipeRefresh.setRefreshing(false);
-
-        } else {
-
-            Thread thread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    DOMParser tmpDOMParser = new DOMParser();
-                    fFeed = tmpDOMParser.parseXml(feedURL);
-                    ListActivity.this.runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            if (fFeed != null && fFeed.getItemCount() > 0) {
-                                feedsAdapter = new FeedsAdapter(ListActivity.this, fFeed);
-                                recyclerView.setAdapter(feedsAdapter);
-                            } else {
-                                Toast.makeText(ListActivity.this, R.string.no_internet, Toast.LENGTH_SHORT).show();
-                            }
-                            swipeRefresh.setRefreshing(false);
-                        }
-                    });
-                }
-            });
-            thread.start();
+            return;
         }
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final RSSFeed parsedFeed = new DOMParser().parseXml(requestedFeedUrl);
+                ListActivity.this.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (requestId != feedRequestId || isFinishing()) {
+                            return;
+                        }
+                        if (parsedFeed != null && parsedFeed.getItemCount() > 0) {
+                            fFeed = parsedFeed;
+                            feedsAdapter = new FeedsAdapter(ListActivity.this, parsedFeed);
+                            recyclerView.setAdapter(feedsAdapter);
+                        } else {
+                            Toast.makeText(ListActivity.this, R.string.feed_load_failed, Toast.LENGTH_SHORT).show();
+                        }
+                        swipeRefresh.setRefreshing(false);
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void updateNotificationBaseline(RSSFeed feed) {
+        if (!isNotificationServiceRunning(notifyService.class)) {
+            return;
+        }
+        firstItemDate = feed.getItem(0);
+        lastDate = firstItemDate.getDate();
+        lastDateFormat = lastDate.substring(lastDate.length() - 5).replace(":", "");
+        saveUtils.saveLastDate(getBaseContext(), lastDateFormat);
+        stopService(notificationIntent);
+        broadcastIntent = new Intent("dontKillMe");
+        sendBroadcast(broadcastIntent);
     }
 
     //used to check if notify service is running

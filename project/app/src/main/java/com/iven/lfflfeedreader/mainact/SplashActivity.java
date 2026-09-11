@@ -7,6 +7,8 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.widget.Button;
 
 import com.iven.lfflfeedreader.R;
 import com.iven.lfflfeedreader.domparser.DOMParser;
@@ -16,93 +18,102 @@ import com.iven.lfflfeedreader.utils.saveUtils;
 
 public class SplashActivity extends AppCompatActivity {
 
-    //the default feed
     public static String default_feed_value;
-
-    //the items
     RSSFeed lfflfeed;
-
-    //Connectivity manager
     ConnectivityManager connectivityManager;
+    private AsyncLoadXMLFeed feedLoadTask;
+    private final Handler handler = new Handler();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        default_feed_value = saveUtils.getFeedUrl(SplashActivity.this);
-
-        //set the navbar tint if the preference is enabled
+        default_feed_value = saveUtils.getFeedUrl(this);
         Preferences.applyNavTint(this);
-
-        //set LightStatusBar
         Preferences.applyLightIcons(this);
-
-        // Detect if there's a connection issue or not
         connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
 
-        // If there's a connection problem
         if (connectivityManager.getActiveNetworkInfo() == null) {
-
-            // Show alert splash
             setContentView(R.layout.splash_no_internet);
-            new Handler().postDelayed(new Runnable() {
+            handler.postDelayed(new Runnable() {
+                @Override
                 public void run() {
-
-                    // and finish the splash activity
-                    SplashActivity.this.finish();
-
+                    if (!isFinishing()) {
+                        finish();
+                    }
                 }
             }, 2000);
-
         } else {
-
-            //else :P, start the default splash screen and parse the RSSFeed and save the object
-            setContentView(R.layout.splash);
-            new AsyncLoadXMLFeed().execute();
-
+            loadFeed();
         }
     }
 
-    //using intents we send the lfflfeed (the parsed xml to populate the listview)
-    // from the async task to listactivity
-    private void startListActivity(RSSFeed lfflfeed) {
+    private void loadFeed() {
+        setContentView(R.layout.splash);
+        feedLoadTask = new AsyncLoadXMLFeed();
+        feedLoadTask.execute();
+    }
 
+    private boolean canUpdateUi() {
+        return !isFinishing() && !isDestroyed();
+    }
+
+    private void startListActivity(RSSFeed feed) {
+        if (!canUpdateUi()) {
+            return;
+        }
         Bundle bundle = new Bundle();
-        bundle.putSerializable("feed", lfflfeed);
-        Intent i = new Intent(SplashActivity.this, ListActivity.class);
-        i.putExtras(bundle);
-        startActivity(i);
+        bundle.putSerializable("feed", feed);
+        Intent intent = new Intent(this, ListActivity.class);
+        intent.putExtras(bundle);
+        startActivity(intent);
         finish();
     }
 
-    //parse the xml in an async task (background thread)
-    private class AsyncLoadXMLFeed extends AsyncTask<Void, Void, Void> {
+    private void showFeedLoadFailure() {
+        if (!canUpdateUi()) {
+            return;
+        }
+        setContentView(R.layout.splash_feed_error);
+        Button retry = (Button) findViewById(R.id.retry_feed_load);
+        retry.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (connectivityManager.getActiveNetworkInfo() == null) {
+                    setContentView(R.layout.splash_no_internet);
+                    return;
+                }
+                loadFeed();
+            }
+        });
+    }
 
+    @Override
+    protected void onDestroy() {
+        if (feedLoadTask != null) {
+            feedLoadTask.cancel(true);
+        }
+        handler.removeCallbacksAndMessages(null);
+        super.onDestroy();
+    }
+
+    private class AsyncLoadXMLFeed extends AsyncTask<Void, Void, RSSFeed> {
         @Override
-        protected Void doInBackground(Void... params) {
-
-            DOMParser Do = new DOMParser();
-            lfflfeed = Do.parseXml(default_feed_value);
-
-            return null;
-
+        protected RSSFeed doInBackground(Void... params) {
+            return new DOMParser().parseXml(default_feed_value);
         }
 
         @Override
-        protected void onPostExecute(Void result) {
-            super.onPostExecute(result);
-            if (lfflfeed != null && lfflfeed.getItemCount() > 0) {
-                startListActivity(lfflfeed);
+        protected void onPostExecute(RSSFeed feed) {
+            super.onPostExecute(feed);
+            if (isCancelled() || !canUpdateUi()) {
+                return;
+            }
+            lfflfeed = feed;
+            if (feed != null && feed.getItemCount() > 0) {
+                startListActivity(feed);
             } else {
-                setContentView(R.layout.splash_no_internet);
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        finish();
-                    }
-                }, 2000);
+                showFeedLoadFailure();
             }
         }
-
     }
 }
