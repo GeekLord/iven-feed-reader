@@ -1,6 +1,5 @@
 package com.iven.lfflfeedreader.mainact;
 
-import android.app.ActivityManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -90,7 +89,6 @@ public class ListActivity extends AppCompatActivity implements android.support.v
 
     //notification
     Intent notificationIntent;
-    Intent broadcastIntent;
 
     private List<String> mUrls;
     private List<String> mFeeds;
@@ -547,20 +545,22 @@ public class ListActivity extends AppCompatActivity implements android.support.v
     }
 
     private void updateNotificationBaseline(RSSFeed feed) {
-        if (!isNotificationServiceRunning(notifyService.class)) {
+        if (!Preferences.notificationsEnabled(this)) {
             return;
         }
         firstItemDate = feed.getItem(0);
         lastDate = firstItemDate.getDate();
         lastDateFormat = getDateToken(lastDate);
         if (lastDateFormat == null) {
+            // Date-based notifications cannot safely poll this feed.
             stopService(notificationIntent);
             return;
         }
         saveUtils.saveLastDate(getBaseContext(), lastDateFormat);
-        stopService(notificationIntent);
-        broadcastIntent = new Intent("dontKillMe");
-        sendBroadcast(broadcastIntent);
+        notificationIntent.putExtra(notifyService.PARAM_IN_MSG, lastDateFormat);
+        // This also restarts a service that was stopped for a previous feed with
+        // an unrecognized publication date.
+        startService(notificationIntent);
     }
 
     private String getDateToken(String date) {
@@ -568,18 +568,6 @@ public class ListActivity extends AppCompatActivity implements android.support.v
             return null;
         }
         return date.substring(date.length() - 5).replace(":", "");
-    }
-
-    //used to check if notify service is running
-    //https://stackoverflow.com/questions/17588910/check-if-service-is-running-on-android
-    private boolean isNotificationServiceRunning(Class<?> serviceClass) {
-        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
-            if (serviceClass.getName().equals(service.service.getClassName())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     //Dynamic RecyclerView adapter
