@@ -72,11 +72,19 @@ public class notifyService extends Service {
 
         alarm = getAlarms.getString("audio", String.valueOf(defaultRingtoneUri));
 
-        //get last item date from ListActivity
-        firstItemDate = intent.getStringExtra(PARAM_IN_MSG);
+        // A sticky-service restart may not provide the original intent.
+        firstItemDate = intent == null ? saveUtils.getLastDate(getBaseContext())
+                : intent.getStringExtra(PARAM_IN_MSG);
+        if (firstItemDate == null) {
+            firstItemDate = saveUtils.getLastDate(getBaseContext());
+        }
         saveUtils.saveLastDate(getBaseContext(), firstItemDate);
 
-        lastDate = Integer.valueOf(firstItemDate);
+        try {
+            lastDate = Integer.valueOf(firstItemDate);
+        } catch (NumberFormatException ignored) {
+            lastDate = 0;
+        }
 
         //get selected notification
         notificationSound = Uri.parse(alarm);
@@ -161,7 +169,10 @@ public class notifyService extends Service {
 
     @Override
     public void onDestroy() {
-        handler.removeCallbacksAndMessages(null);
+        if (handler != null) {
+            handler.removeCallbacksAndMessages(null);
+        }
+        super.onDestroy();
 
     }
 }

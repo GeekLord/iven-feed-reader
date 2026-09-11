@@ -91,7 +91,17 @@ public class SplashActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(Void result) {
             super.onPostExecute(result);
-            startListActivity(lfflfeed);
+            if (lfflfeed != null && lfflfeed.getItemCount() > 0) {
+                startListActivity(lfflfeed);
+            } else {
+                setContentView(R.layout.splash_no_internet);
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        finish();
+                    }
+                }, 2000);
+            }
         }
 
     }

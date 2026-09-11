@@ -1,18 +1,14 @@
 package com.iven.lfflfeedreader.mainact;
 
-import android.Manifest;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -47,8 +43,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ListActivity extends AppCompatActivity implements android.support.v4.widget.SwipeRefreshLayout.OnRefreshListener {
-
-    private static final int REQUEST_CODE = 1;
 
     //feed
     RSSFeed fFeed;
@@ -119,10 +113,6 @@ public class ListActivity extends AppCompatActivity implements android.support.v
     public void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
-
-        if (Preferences.notificationsEnabled(ListActivity.this)) {
-            checkPermissions();
-        }
 
         feedURL = SplashActivity.default_feed_value;
 
@@ -518,7 +508,8 @@ public class ListActivity extends AppCompatActivity implements android.support.v
                         public void run() {
                             if (fFeed != null && fFeed.getItemCount() > 0) {
 
-                                recyclerView.setAdapter(new FeedsAdapter(ListActivity.this, fFeed));
+                                feedsAdapter = new FeedsAdapter(ListActivity.this, fFeed);
+                                recyclerView.setAdapter(feedsAdapter);
 
                                 //close swipe refresh
                                 swipeRefresh.setRefreshing(false);
@@ -580,24 +571,17 @@ public class ListActivity extends AppCompatActivity implements android.support.v
                         @Override
                         public void run() {
                             if (fFeed != null && fFeed.getItemCount() > 0) {
-                                feedsAdapter.notifyDataSetChanged();
-                                swipeRefresh.setRefreshing(false);
+                                feedsAdapter = new FeedsAdapter(ListActivity.this, fFeed);
+                                recyclerView.setAdapter(feedsAdapter);
+                            } else {
+                                Toast.makeText(ListActivity.this, R.string.no_internet, Toast.LENGTH_SHORT).show();
                             }
+                            swipeRefresh.setRefreshing(false);
                         }
                     });
                 }
             });
             thread.start();
-        }
-    }
-
-    public void checkPermissions() {
-        if (ContextCompat.checkSelfPermission(ListActivity.this,
-                Manifest.permission.SEND_SMS)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(ListActivity.this,
-                    new String[]{Manifest.permission.SEND_SMS},
-                    REQUEST_CODE);
         }
     }
 

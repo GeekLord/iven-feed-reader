@@ -18,9 +18,9 @@ public class RSSItem implements Serializable {
     private String complete_desc = "no desc";
     private String item_desc = "no desc";
     private String item_date = "no date";
-    private String item_image = "no image";
-    private String rss_link = "no link";
-    private String item_image2 = "no image";
+    private String item_image = "";
+    private String rss_link = "";
+    private String item_image2 = "";
 
     public String getTitle() {
         return item_title;

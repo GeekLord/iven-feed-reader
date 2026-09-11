@@ -67,9 +67,9 @@ class FeedsAdapter extends RecyclerView.Adapter<FeedsAdapter.SimpleViewHolder> {
 
 
         //if the preference is enabled remove the linear layout containing the ImageView
-        if (Preferences.imagesRemoved(activity)) {
+        if (Preferences.imagesRemoved(activity) || (imageLink.isEmpty() && imageLink2.isEmpty())) {
 
-            holder.linearLayout.removeAllViewsInLayout();
+            holder.linearLayout.setVisibility(View.GONE);
 
         }
 
@@ -77,11 +77,13 @@ class FeedsAdapter extends RecyclerView.Adapter<FeedsAdapter.SimpleViewHolder> {
         //if getImage() method fails (i.e when img is in content:encoded) load image2
         else if (imageLink.isEmpty()) {
 
+            holder.linearLayout.setVisibility(View.VISIBLE);
             GlideUtils.loadImage(activity, imageLink2, holder.lfflImage);
 
             //else use image
         } else {
 
+            holder.linearLayout.setVisibility(View.VISIBLE);
             GlideUtils.loadImage(activity, imageLink, holder.lfflImage);
         }
 
