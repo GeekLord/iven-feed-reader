@@ -29,6 +29,8 @@
     <string name="share">Share</string>
     <string name="chooser_title">Choose your browser &#8230;</string>
     <string name="no_internet">Connect to the internet please</string>
+    <string name="feed_load_failed">Unable to load this feed. Please try again.</string>
+    <string name="retry">Retry</string>
     <string name="loading">Please wait &#8230;</string>
 
     <!-- Preferences -->

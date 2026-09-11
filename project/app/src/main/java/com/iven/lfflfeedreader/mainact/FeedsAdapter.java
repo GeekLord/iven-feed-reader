@@ -59,17 +59,22 @@ class FeedsAdapter extends RecyclerView.Adapter<FeedsAdapter.SimpleViewHolder> {
         holder.itemTitle.setText(feedTitle);
 
         //subtitle = publication date
-        holder.pubDate.setText(feedDate);
-        holder.pubDate.setTextSize(TypedValue.COMPLEX_UNIT_SP, size - 2);
+        if (feedDate.isEmpty()) {
+            holder.pubDate.setVisibility(View.GONE);
+        } else {
+            holder.pubDate.setVisibility(View.VISIBLE);
+            holder.pubDate.setText(feedDate);
+            holder.pubDate.setTextSize(TypedValue.COMPLEX_UNIT_SP, size - 2);
+        }
 
         //set the list items text size from preferences in SP unit
         holder.itemTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, size);
 
 
         //if the preference is enabled remove the linear layout containing the ImageView
-        if (Preferences.imagesRemoved(activity)) {
+        if (Preferences.imagesRemoved(activity) || (imageLink.isEmpty() && imageLink2.isEmpty())) {
 
-            holder.linearLayout.removeAllViewsInLayout();
+            holder.linearLayout.setVisibility(View.GONE);
 
         }
 
@@ -77,11 +82,13 @@ class FeedsAdapter extends RecyclerView.Adapter<FeedsAdapter.SimpleViewHolder> {
         //if getImage() method fails (i.e when img is in content:encoded) load image2
         else if (imageLink.isEmpty()) {
 
+            holder.linearLayout.setVisibility(View.VISIBLE);
             GlideUtils.loadImage(activity, imageLink2, holder.lfflImage);
 
             //else use image
         } else {
 
+            holder.linearLayout.setVisibility(View.VISIBLE);
             GlideUtils.loadImage(activity, imageLink, holder.lfflImage);
         }
 
