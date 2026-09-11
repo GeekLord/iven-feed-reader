@@ -56,13 +56,29 @@ public class DOMParser {
         return feed;
     }
 
-    private void configureSecureParser(DocumentBuilderFactory factory) throws Exception {
-        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-        factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-        factory.setXIncludeAware(false);
+    private void configureSecureParser(DocumentBuilderFactory factory) {
+        // Android's built-in DOM factory rejects most XML feature flags. Apply every
+        // hardening option independently so an unsupported option cannot prevent
+        // otherwise valid feeds from being parsed.
+        setFeatureIfSupported(factory, "http://apache.org/xml/features/disallow-doctype-decl", true);
+        setFeatureIfSupported(factory, "http://xml.org/sax/features/external-general-entities", false);
+        setFeatureIfSupported(factory, "http://xml.org/sax/features/external-parameter-entities", false);
+        setFeatureIfSupported(factory, "http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+
+        try {
+            factory.setXIncludeAware(false);
+        } catch (UnsupportedOperationException ignored) {
+            // Not implemented by the platform parser.
+        }
         factory.setExpandEntityReferences(false);
+    }
+
+    private void setFeatureIfSupported(DocumentBuilderFactory factory, String feature, boolean value) {
+        try {
+            factory.setFeature(feature, value);
+        } catch (Exception ignored) {
+            // Different Android releases support different subsets of XML features.
+        }
     }
 
     private void parseItems(NodeList nodes, RSSFeed feed) throws Exception {
