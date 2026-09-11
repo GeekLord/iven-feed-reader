@@ -246,22 +246,15 @@ public class ListActivity extends AppCompatActivity implements android.support.v
         firstItemDate = fFeed.getItem(0);
         lastDate = firstItemDate.getDate();
 
-        //get last five characters and remove the `:`
-        lastDateFormat = lastDate.substring(lastDate.length() - 5).replace(":", "");
-
+        lastDateFormat = getDateToken(lastDate);
         notificationIntent = new Intent(ListActivity.this, notifyService.class);
 
-        //send date info to notify service
-        notificationIntent.putExtra(notifyService.PARAM_IN_MSG, lastDateFormat);
-
-        //start service if notifications are enabled
-        if (Preferences.notificationsEnabled(ListActivity.this)) {
-
+        // A feed without a normalized publication date can still be read, but it
+        // cannot provide a reliable baseline for date-based notifications.
+        if (Preferences.notificationsEnabled(ListActivity.this) && lastDateFormat != null) {
+            notificationIntent.putExtra(notifyService.PARAM_IN_MSG, lastDateFormat);
             ListActivity.this.startService(notificationIntent);
-
         } else {
-
-            //stop service if notifications are disabled
             ListActivity.this.stopService(notificationIntent);
         }
 
@@ -559,11 +552,22 @@ public class ListActivity extends AppCompatActivity implements android.support.v
         }
         firstItemDate = feed.getItem(0);
         lastDate = firstItemDate.getDate();
-        lastDateFormat = lastDate.substring(lastDate.length() - 5).replace(":", "");
+        lastDateFormat = getDateToken(lastDate);
+        if (lastDateFormat == null) {
+            stopService(notificationIntent);
+            return;
+        }
         saveUtils.saveLastDate(getBaseContext(), lastDateFormat);
         stopService(notificationIntent);
         broadcastIntent = new Intent("dontKillMe");
         sendBroadcast(broadcastIntent);
+    }
+
+    private String getDateToken(String date) {
+        if (date == null || !date.matches(".*\\d{2}:\\d{2}$")) {
+            return null;
+        }
+        return date.substring(date.length() - 5).replace(":", "");
     }
 
     //used to check if notify service is running

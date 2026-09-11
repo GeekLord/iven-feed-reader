@@ -98,9 +98,7 @@ public class DOMParser {
                 }
                 setItemValue(item, node.getNodeName(), value.trim());
             }
-            if (item.getDate().matches(".*\\d{2}:\\d{2}$")) {
-                feed.addItem(item);
-            }
+            feed.addItem(item);
         }
     }
 

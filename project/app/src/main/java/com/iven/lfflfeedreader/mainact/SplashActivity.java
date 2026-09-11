@@ -33,15 +33,7 @@ public class SplashActivity extends AppCompatActivity {
         connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
 
         if (connectivityManager.getActiveNetworkInfo() == null) {
-            setContentView(R.layout.splash_no_internet);
-            handler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (!isFinishing()) {
-                        finish();
-                    }
-                }
-            }, 2000);
+            showNoInternetAndFinish();
         } else {
             loadFeed();
         }
@@ -51,6 +43,18 @@ public class SplashActivity extends AppCompatActivity {
         setContentView(R.layout.splash);
         feedLoadTask = new AsyncLoadXMLFeed();
         feedLoadTask.execute();
+    }
+
+    private void showNoInternetAndFinish() {
+        setContentView(R.layout.splash_no_internet);
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (!isFinishing()) {
+                    finish();
+                }
+            }
+        }, 2000);
     }
 
     private boolean canUpdateUi() {
@@ -79,7 +83,7 @@ public class SplashActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 if (connectivityManager.getActiveNetworkInfo() == null) {
-                    setContentView(R.layout.splash_no_internet);
+                    showNoInternetAndFinish();
                     return;
                 }
                 loadFeed();
